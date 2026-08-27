@@ -9,6 +9,8 @@ const nextConfig = {
     devframes: [
       // A package name mounts a devframe with its default options.
       "@devframes/plugin-terminals",
+      "@devframes/plugin-inspect",
+      "@devframes/plugin-code-server",
 
       // Build one with its own factory to configure it. The Data Inspector
       // needs this: its default id is `devframes:plugin:data-inspector`, and a

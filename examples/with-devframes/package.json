@@ -12,7 +12,9 @@
   },
   "devDependencies": {
     "@devframes/hub": "^0.9.6",
+    "@devframes/plugin-code-server": "^0.9.6",
     "@devframes/plugin-data-inspector": "^0.9.6",
+    "@devframes/plugin-inspect": "^0.9.6",
     "@devframes/plugin-terminals": "^0.9.6",
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.2",
