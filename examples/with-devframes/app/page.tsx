@@ -4,7 +4,7 @@ export default function Page() {
       <h1>Devframes in Next DevTools</h1>
 
       <p>
-        This app mounts four devframes. Open the Next.js logo in the corner of
+        This app mounts five devframes. Open the Next.js logo in the corner of
         the page, then choose <strong>Devframe</strong>.
       </p>
 
@@ -19,8 +19,12 @@ export default function Page() {
           <strong>Code Server</strong> — an embedded editor for this project.
         </li>
         <li>
-          <strong>Data</strong> — a query workbench, the one built with its
-          factory so it can be configured.
+          <strong>Data</strong> — a query workbench, built with its factory so
+          it can be configured.
+        </li>
+        <li>
+          <strong>A11y Inspector</strong> — axe-core run against this page, via
+          a page script the dev server boots.
         </li>
       </ul>
 

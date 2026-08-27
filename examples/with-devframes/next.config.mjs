@@ -1,3 +1,4 @@
+import createA11y, { a11yPageScriptBundlePath } from "@devframes/plugin-a11y";
 import createDataInspector from "@devframes/plugin-data-inspector";
 
 /** @type {import('next').NextConfig} */
@@ -20,6 +21,14 @@ const nextConfig = {
         name: "Data",
         icon: "ph:magnifying-glass-duotone",
       }),
+
+      // The a11y inspector scans the app's own DOM, so it ships a page script.
+      // Point the dock at the bundle and the dev server serves it, then boots
+      // it in the page for the panel to talk to.
+      {
+        devframe: createA11y(),
+        dock: { clientScript: { importFrom: a11yPageScriptBundlePath } },
+      },
     ],
   },
 };

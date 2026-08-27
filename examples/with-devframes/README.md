@@ -2,12 +2,13 @@
 
 [Devframe](https://devfra.me/) is a framework-neutral foundation for building devtools. This example mounts Devframe devtools as panels inside the Next.js DevTools indicator: open the Next.js logo in the corner of the page and choose **Devframe**.
 
-Four devframes are mounted, covering both ways to declare one:
+Five devframes are mounted, covering every way to declare one:
 
 - **Terminals** ([`@devframes/plugin-terminals`](https://devfra.me/plugins/terminals)) — an interactive shell in a panel.
 - **Inspect** ([`@devframes/plugin-inspect`](https://devfra.me/plugins/inspect)) — the module graph and transform pipeline.
 - **Code Server** ([`@devframes/plugin-code-server`](https://devfra.me/plugins/code-server)) — an embedded editor for this project.
-- **Data** ([`@devframes/plugin-data-inspector`](https://devfra.me/plugins/data-inspector)) — a [jora](https://discoveryjs.github.io/jora/) query workbench, and the one built with its factory so it can be configured.
+- **Data** ([`@devframes/plugin-data-inspector`](https://devfra.me/plugins/data-inspector)) — a [jora](https://discoveryjs.github.io/jora/) query workbench, built with its factory so it can be configured.
+- **A11y Inspector** ([`@devframes/plugin-a11y`](https://devfra.me/plugins/a11y)) — [axe-core](https://github.com/dequelabs/axe-core) run against this app, through a page script.
 
 > This uses `experimental.devframes`, which is unreleased — hence `next: canary` in `package.json`.
 
@@ -71,6 +72,24 @@ export default {
 };
 ```
 
+A devframe that inspects the app's own DOM ships a **page script** to run in the page. Point its dock at the bundle and the dev server serves it, then boots it before the panel opens:
+
+```js
+// next.config.mjs
+import createA11y, { a11yPageScriptBundlePath } from "@devframes/plugin-a11y";
+
+export default {
+  experimental: {
+    devframes: [
+      {
+        devframe: createA11y(),
+        dock: { clientScript: { importFrom: a11yPageScriptBundlePath } },
+      },
+    ],
+  },
+};
+```
+
 Install each devframe yourself, alongside `@devframes/hub`:
 
 ```bash
@@ -85,7 +104,7 @@ Each devframe is served at `/__nextjs_devframe/<id>/`, so its id has to be a val
 
 ### Other devframes
 
-Devframe ships several more ([full list](https://devfra.me/plugins)), including a Git browser, an accessibility auditor, an Open Graph previewer, and an asset browser.
+Devframe ships several more ([full list](https://devfra.me/plugins)), including a Git browser, an Open Graph previewer, and an asset browser.
 
 **Some devframes spawn processes or expose a shell on the dev server, so only list ones you trust.** Terminals in this example is one of them: it runs commands on your machine. It denies arbitrary commands by default, allowing only your own shell and any `presets` you configure:
 
