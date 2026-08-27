@@ -120,6 +120,7 @@ import {
   getDevToolsConfig,
 } from '../../next-devtools/server/devtools-config-middleware'
 import { getAttachNodejsDebuggerMiddleware } from '../../next-devtools/server/attach-nodejs-debugger-middleware'
+import { getDevframeMiddleware } from '../../next-devtools/server/devframe-middleware'
 import {
   connectReactDebugChannel,
   connectReactDebugChannelForHtmlRequest,
@@ -1191,6 +1192,14 @@ export async function createHotReloaderTurbopack(
       },
     }),
     getAttachNodejsDebuggerMiddleware(),
+    ...(nextConfig.experimental.devframes?.length
+      ? [
+          getDevframeMiddleware({
+            projectDir: projectPath,
+            devframes: nextConfig.experimental.devframes,
+          }),
+        ]
+      : []),
     ...(nextConfig.experimental.mcpServer
       ? [
           getMcpMiddleware({

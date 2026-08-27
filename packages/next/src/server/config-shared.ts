@@ -599,6 +599,17 @@ export interface ExperimentalConfig {
    * fetch, and cache behavior without requiring an external OTEL collector.
    */
   requestInsights?: boolean
+  /**
+   * Devframes to mount in Next DevTools, as installed package names (e.g.
+   * `['@devframes/plugin-terminals']`). Each is loaded in the dev server, gets
+   * its own panel in the DevTools indicator, and is served under
+   * `/__nextjs_devframe/<id>/`. Dev only, and empty or unset turns the feature
+   * off entirely.
+   *
+   * Install the packages yourself alongside `@devframes/hub`. Some devframes
+   * spawn processes or expose a shell, so only list ones you trust.
+   */
+  devframes?: string[]
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
@@ -2308,6 +2319,7 @@ export const defaultConfig = Object.freeze({
     swcTraceProfiling: false,
     forceSwcTransforms: false,
     requestInsights: false,
+    devframes: undefined,
     swcPlugins: undefined,
     largePageDataBytes: 128 * 1000, // 128KB by default
     disablePostcssPresetEnv: undefined,

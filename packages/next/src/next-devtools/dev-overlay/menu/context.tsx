@@ -12,6 +12,7 @@ export type PanelStateKind =
   | 'panel-selector'
   | 'instant-navs'
   | 'request-insights'
+  | 'devframe'
   | 'turbo-info'
   | 'cache-disabled'
   | 'cold-cache'

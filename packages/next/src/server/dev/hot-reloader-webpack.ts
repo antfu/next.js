@@ -95,6 +95,7 @@ import {
   getDevToolsConfig,
 } from '../../next-devtools/server/devtools-config-middleware'
 import { getAttachNodejsDebuggerMiddleware } from '../../next-devtools/server/attach-nodejs-debugger-middleware'
+import { getDevframeMiddleware } from '../../next-devtools/server/devframe-middleware'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
   connectReactDebugChannel,
@@ -1685,6 +1686,14 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         },
       }),
       getAttachNodejsDebuggerMiddleware(),
+      ...(this.config.experimental.devframes?.length
+        ? [
+            getDevframeMiddleware({
+              projectDir: this.dir,
+              devframes: this.config.experimental.devframes,
+            }),
+          ]
+        : []),
       ...(this.config.experimental.mcpServer
         ? [
             getMcpMiddleware({

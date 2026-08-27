@@ -31,6 +31,7 @@ import { useUpdateAllPanelPositions } from '../components/devtools-indicator/dev
 import { saveDevToolsConfig } from '../utils/save-devtools-config'
 import { InstantNavsPanel } from '../components/instant-navs/instant-navs-panel'
 import { RequestInsightsPanel } from '../components/request-insights/request-insights-panel'
+import { DevframePanel } from '../components/devframe/devframe-panel'
 import './panel-router.css'
 import { CacheDisabledBody } from '../components/errors/dev-tools-indicator/dev-tools-info/cache-disabled'
 import { ColdCacheBody } from '../components/errors/dev-tools-indicator/dev-tools-info/cold-cache'
@@ -159,6 +160,17 @@ const MenuPanel = () => {
               'data-request-insights': true,
             },
           },
+        !!process.env.__NEXT_DEVFRAME && {
+          title: 'Open devtools mounted from the Devframe hub.',
+          label: 'Devframe',
+          value: <ChevronRight />,
+          onClick: () => {
+            setPanel('devframe')
+          },
+          attributes: {
+            'data-devframe': true,
+          },
+        },
         state.cacheIndicator === 'bypass' && {
           title:
             'Caching is currently disabled (bypassed). Click to learn more.',
@@ -391,6 +403,30 @@ export const PanelRouter = () => {
             header={<DevToolsHeader title="Request Insights" />}
           >
             <RequestInsightsPanel />
+          </DynamicPanel>
+        </PanelRoute>
+      )}
+
+      {!!process.env.__NEXT_DEVFRAME && (
+        <PanelRoute name="devframe">
+          <DynamicPanel
+            sharePanelSizeGlobally={false}
+            sharePanelPositionGlobally={false}
+            draggable
+            sizeConfig={{
+              kind: 'resizable',
+              maxHeight: '90vh',
+              maxWidth: '90vw',
+              minHeight: 260 / state.scale,
+              minWidth: `min(${480 / state.scale}px, 90vw)`,
+              initialSize: {
+                height: 480 / state.scale,
+                width: 720 / state.scale,
+              },
+            }}
+            header={<DevToolsHeader title="Devframe" />}
+          >
+            <DevframePanel />
           </DynamicPanel>
         </PanelRoute>
       )}
