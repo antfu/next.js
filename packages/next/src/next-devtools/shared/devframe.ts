@@ -25,4 +25,10 @@ export interface DevframeDock {
 
 export interface DevframeDocksResponse {
   docks: DevframeDock[]
+  /**
+   * Page scripts to boot in the app's own page. A devframe that needs to reach
+   * the user's DOM (the a11y inspector scanning it) ships one, and talks to its
+   * panel over devframe's same-origin in-page channel.
+   */
+  pageScripts: string[]
 }

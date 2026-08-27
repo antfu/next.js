@@ -24,7 +24,11 @@ export function DevframePanel() {
         if (!res.ok) throw new Error(`the hub responded ${res.status}`)
         return res.json()
       })
-      .then((payload: DevframeDocksResponse) => {
+      .then(async (payload: DevframeDocksResponse) => {
+        // Boot page scripts before the panels mount: a panel handshakes with
+        // its page script over the in-page channel, and a panel that asks
+        // first can be left waiting.
+        await bootPageScripts(payload.pageScripts ?? [])
         if (cancelled) return
         const mounted = payload.docks ?? []
         setDocks(mounted)
@@ -109,4 +113,22 @@ export function DevframePanel() {
       </div>
     </div>
   )
+}
+
+/**
+ * Boot each devframe's page script in the app's own page, which is the only
+ * place it can reach the DOM it inspects. A script tag rather than `import()`
+ * so no bundler tries to resolve a URL the dev server serves at runtime, and
+ * keyed by `src` so re-opening the panel does not boot one twice.
+ */
+function bootPageScripts(urls: string[]): void {
+  for (const url of urls) {
+    if (document.querySelector(`script[data-nextjs-devframe="${url}"]`))
+      continue
+    const script = document.createElement('script')
+    script.type = 'module'
+    script.src = url
+    script.dataset.nextjsDevframe = url
+    document.head.appendChild(script)
+  }
 }
