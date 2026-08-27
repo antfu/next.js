@@ -895,6 +895,15 @@ function bindingToApi(
       nextConfigSerializable.generateBuildId && {}
     nextConfigSerializable.webpack = nextConfigSerializable.webpack && {}
 
+    // A devframe built inline by its factory carries functions (and can hold
+    // circular references), and Turbopack never reads the list.
+    if (nextConfigSerializable.experimental?.devframes) {
+      nextConfigSerializable.experimental = {
+        ...nextConfigSerializable.experimental,
+        devframes: [],
+      }
+    }
+
     if (nextConfigSerializable.modularizeImports) {
       nextConfigSerializable.modularizeImports = Object.fromEntries(
         Object.entries<any>(nextConfigSerializable.modularizeImports).map(

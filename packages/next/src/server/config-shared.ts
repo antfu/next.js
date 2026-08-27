@@ -600,16 +600,33 @@ export interface ExperimentalConfig {
    */
   requestInsights?: boolean
   /**
-   * Devframes to mount in Next DevTools, as installed package names (e.g.
-   * `['@devframes/plugin-terminals']`). Each is loaded in the dev server, gets
-   * its own panel in the DevTools indicator, and is served under
-   * `/__nextjs_devframe/<id>/`. Dev only, and empty or unset turns the feature
-   * off entirely.
+   * Devframes to mount in Next DevTools. Each gets its own panel in the
+   * DevTools indicator and is served under `/__nextjs_devframe/<id>/`. Dev
+   * only, and empty or unset turns the feature off entirely.
+   *
+   * An entry is either an installed package name, which the dev server loads
+   * for you with that devframe's default options:
+   *
+   * ```js
+   * devframes: ['@devframes/plugin-terminals']
+   * ```
+   *
+   * or a devframe built by its own factory, so you can configure it:
+   *
+   * ```js
+   * import createTerminals from '@devframes/plugin-terminals'
+   *
+   * devframes: [
+   *   createTerminals({
+   *     presets: [{ id: 'build', title: 'next build', command: 'next', args: ['build'] }],
+   *   }),
+   * ]
+   * ```
    *
    * Install the packages yourself alongside `@devframes/hub`. Some devframes
    * spawn processes or expose a shell, so only list ones you trust.
    */
-  devframes?: string[]
+  devframes?: Array<string | { id: string }>
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string

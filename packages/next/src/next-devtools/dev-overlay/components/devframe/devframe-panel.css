@@ -15,6 +15,9 @@
 }
 
 .devframe-panel-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   padding: 4px 10px;
   border: none;
   border-radius: var(--rounded-md);
@@ -77,4 +80,33 @@
   background: var(--color-gray-alpha-100);
   border-radius: var(--rounded-sm);
   padding: 1px 4px;
+}
+
+/*
+ * The icon is a mask painted with `currentColor`, so it inherits the tab's
+ * colour in both themes and a duotone icon keeps its two tones (the mask reads
+ * the source SVG's alpha).
+ */
+.devframe-panel-tab-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  background-color: currentColor;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: 100% 100%;
+}
+
+.devframe-panel-tab-initial {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: var(--rounded-sm);
+  background: var(--color-gray-alpha-300);
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  line-height: 1;
 }

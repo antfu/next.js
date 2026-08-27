@@ -1,9 +1,15 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import { pathToFileURL } from 'url'
 
-import { DEVFRAME_BASE } from '../shared/devframe'
+import type { DevframeDock } from '../shared/devframe'
+import { DEVFRAME_BASE, DEVFRAME_DOCKS_URL } from '../shared/devframe'
+import { resolveDockIconMask, type DevframeDockIcon } from './devframe-icon'
+import { middlewareResponse } from './middleware-response'
 
 type NextFn = (err?: unknown) => void
+
+/** One `experimental.devframes` entry: a package name, or a built devframe. */
+export type DevframeConfigEntry = string | { id: string }
 
 /**
  * The slice of `@devframes/hub`'s `HubInstance` this middleware drives. Declared
@@ -16,6 +22,19 @@ interface HubInstanceLike {
     res: ServerResponse,
     next?: NextFn
   ) => void
+  /** Resolves once every devframe is mounted and its dock registered. */
+  ready: Promise<void>
+  context: Promise<{
+    docks: {
+      values: () => Array<{
+        id: string
+        type: string
+        title: string
+        icon?: DevframeDockIcon
+        url?: string
+      }>
+    }
+  }>
 }
 
 /**
@@ -37,6 +56,72 @@ function importFromProject(
     require.resolve(specifier, { paths: [projectDir] })
   ).href
   return import(resolved)
+}
+
+function createHub(
+  projectDir: string,
+  devframes: readonly DevframeConfigEntry[]
+): Promise<HubInstanceLike> {
+  return importFromProject(projectDir, '@devframes/hub/initiate').then(
+    ({ initHub }) =>
+      initHub({
+        name: 'next-devtools',
+        base: DEVFRAME_BASE,
+        cwd: projectDir,
+        // A devframe already built by its factory is passed straight through,
+        // options and all. A package name becomes a factory `initHub` calls
+        // during init: loading it with a native `import()` rather than a static
+        // one matters, because a devframe's node side spawns child processes and
+        // resolves its SPA assets through `import.meta.url`, and these are
+        // ESM-only packages the user installs.
+        devframes: devframes.map((entry) =>
+          typeof entry === 'string'
+            ? () =>
+                importFromProject(projectDir, entry).then((mod) =>
+                  mod.default()
+                )
+            : entry
+        ),
+        // SSE only. It rides this middleware like every other hub route, so the
+        // MVP needs no WebSocket upgrade plumbing in the dev server.
+        ws: false,
+        // The dev server is the trust boundary here; an OTP gate on a panel that
+        // should just open is the wrong trade for a dev-only, loopback surface.
+        auth: false,
+      })
+  )
+}
+
+/**
+ * Answer {@link DEVFRAME_DOCKS_URL} from the hub context: the same dock list the
+ * hub publishes as `devframe:docks`, read node-side so the overlay needs no RPC
+ * client, with every icon resolved to a mask a themed rail can paint.
+ */
+async function serveDocks(
+  hub: HubInstanceLike,
+  res: ServerResponse
+): Promise<void> {
+  await hub.ready
+  const context = await hub.context
+
+  const docks = await Promise.all(
+    context.docks
+      .values()
+      // The MVP panel renders iframe docks; every other type needs a renderer
+      // registry, which arrives with the hub client runtime.
+      .filter((entry) => entry.type === 'iframe' && entry.url)
+      .map(async (entry): Promise<DevframeDock> => {
+        const iconMask = await resolveDockIconMask(entry.icon)
+        return {
+          id: entry.id,
+          title: entry.title,
+          url: entry.url!,
+          ...(iconMask ? { iconMask } : {}),
+        }
+      })
+  )
+
+  middlewareResponse.json(res, { docks })
 }
 
 /**
@@ -80,37 +165,6 @@ function applyHeadersWithoutWriteHead(res: ServerResponse): void {
   } as ServerResponse['writeHead']
 }
 
-function createHub(
-  projectDir: string,
-  devframes: readonly string[]
-): Promise<HubInstanceLike> {
-  return importFromProject(projectDir, '@devframes/hub/initiate').then(
-    ({ initHub }) =>
-      initHub({
-        name: 'next-devtools',
-        base: DEVFRAME_BASE,
-        cwd: projectDir,
-        // `initHub` resolves factory entries itself, so each devframe package
-        // loads lazily during hub init rather than blocking this call.
-        // Each entry is loaded with a native `import()` rather than a static one:
-        // a devframe's node side spawns child processes and resolves its SPA
-        // assets through `import.meta.url`, and these are ESM-only packages the
-        // user installs. `initHub` resolves factory entries itself, so each one
-        // loads during hub init rather than blocking this call.
-        devframes: devframes.map(
-          (pkg) => () =>
-            importFromProject(projectDir, pkg).then((mod) => mod.default())
-        ),
-        // SSE only. It rides this middleware like every other hub route, so the
-        // MVP needs no WebSocket upgrade plumbing in the dev server.
-        ws: false,
-        // The dev server is the trust boundary here; an OTP gate on a panel that
-        // should just open is the wrong trade for a dev-only, loopback surface.
-        auth: false,
-      })
-  )
-}
-
 /**
  * Serve a Devframe hub from the dev server, so Next DevTools can host devframes
  * as panels. Callers mount this only when `experimental.devframes` is non-empty;
@@ -124,8 +178,8 @@ export function getDevframeMiddleware({
   devframes,
 }: {
   projectDir: string
-  /** Package names from `experimental.devframes`. */
-  devframes: readonly string[]
+  /** Entries from `experimental.devframes`. */
+  devframes: readonly DevframeConfigEntry[]
 }): (req: IncomingMessage, res: ServerResponse, next: NextFn) => Promise<void> {
   let hub: Promise<HubInstanceLike | null> | undefined
 
@@ -139,8 +193,11 @@ export function getDevframeMiddleware({
     }
 
     hub ??= createHub(projectDir, devframes).catch((error) => {
+      const packages = devframes
+        .filter((entry): entry is string => typeof entry === 'string')
+        .join(' ')
       console.error(
-        `Next DevTools: could not start the Devframe hub. Install it with \`npm i -D @devframes/hub ${devframes.join(' ')}\`.`,
+        `Next DevTools: could not start the Devframe hub. Install it with \`npm i -D @devframes/hub${packages ? ` ${packages}` : ''}\`.`,
         error
       )
       return null
@@ -149,6 +206,16 @@ export function getDevframeMiddleware({
     const instance = await hub
     if (!instance) {
       return next()
+    }
+
+    // Answer the dock listing before delegating: it is Next's own endpoint under
+    // the hub base, so the hub would otherwise 404 it.
+    if (pathname === DEVFRAME_DOCKS_URL) {
+      try {
+        return await serveDocks(instance, res)
+      } catch (error) {
+        return middlewareResponse.internalServerError(res, error)
+      }
     }
 
     applyHeadersWithoutWriteHead(res)
