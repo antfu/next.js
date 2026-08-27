@@ -7,14 +7,18 @@ function BrokenOnPurpose() {
   return (
     <section
       aria-label="Deliberate accessibility problems"
-      style={{ borderTop: "1px solid #ccc", marginTop: 32, paddingTop: 16 }}
+      style={{
+        border: "1px solid #8885",
+        padding: "8px 16px",
+        borderRadius: 8,
+      }}
     >
-      <h2>Deliberately broken</h2>
+      <h4>A11y Examples</h4>
 
       <p>
-        Everything below is wrong on purpose. Open the{" "}
-        <strong>A11y Inspector</strong> panel and it will list these, grouped by
-        rule and severity. Delete this section to watch the count drop to zero.
+        Open the <strong>A11y Inspector</strong> panel and it will list these,
+        grouped by rule and severity. Delete this section to watch the count
+        drop to zero.
       </p>
 
       {/* image-alt: an informative image with no text alternative.
@@ -32,10 +36,6 @@ function BrokenOnPurpose() {
       {/* label: a form control with no associated label.
           Fix: wrap it in a `<label>`, or point one at it with `htmlFor`. */}
       <input type="text" />
-
-      {/* heading-order: jumps from `h2` straight to `h4`.
-          Fix: use the next level down, `h3`. */}
-      <h4>Skipped a heading level</h4>
     </section>
   );
 }
@@ -44,6 +44,8 @@ export default function Page() {
   return (
     <main>
       <h1>Devframes in Next DevTools</h1>
+
+      <BrokenOnPurpose />
 
       <p>
         This app mounts five devframes. Open the Next.js logo in the corner of
@@ -74,8 +76,6 @@ export default function Page() {
         All run only under <code>next dev</code>. Edit the{" "}
         <code>experimental.devframes</code> list to change which ones mount.
       </p>
-
-      <BrokenOnPurpose />
     </main>
   );
 }
