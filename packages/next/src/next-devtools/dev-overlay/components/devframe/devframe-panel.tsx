@@ -7,13 +7,9 @@ import {
 import './devframe-panel.css'
 
 /**
- * Lists the devframes mounted in the dev server's Devframe hub and shows the
- * selected one's SPA.
- *
- * Discovery is a plain `fetch` of the dev server's dock endpoint, so this panel
- * takes no dependency on `@devframes/hub/client` and adds nothing to the
- * pre-compiled `next-devtools` bundle. Each SPA connects back to the hub over
- * its own `__connection.json` from inside the iframe.
+ * Lists the devframes mounted in the dev server's hub and shows the selected
+ * one's SPA. Discovery is a plain `fetch`, so this adds no devframe code to the
+ * pre-compiled `next-devtools` bundle; each SPA connects back to the hub itself.
  */
 export function DevframePanel() {
   const [docks, setDocks] = useState<DevframeDock[] | null>(null)
@@ -25,9 +21,7 @@ export function DevframePanel() {
 
     fetch(DEVFRAME_DOCKS_URL)
       .then((res) => {
-        if (!res.ok) {
-          throw new Error(`the hub responded ${res.status}`)
-        }
+        if (!res.ok) throw new Error(`the hub responded ${res.status}`)
         return res.json()
       })
       .then((payload: DevframeDocksResponse) => {
@@ -48,11 +42,8 @@ export function DevframePanel() {
   if (error !== null) {
     return (
       <div className="devframe-panel-message">
-        <p>Could not reach the Devframe hub — {error}.</p>
-        <p>
-          Add devframes to <code>experimental.devframes</code> and install them
-          alongside <code>@devframes/hub</code>.
-        </p>
+        Could not reach the Devframe hub — {error}. Check the terminal for the
+        reason.
       </div>
     )
   }
@@ -83,18 +74,29 @@ export function DevframePanel() {
               data-selected={dock.id === selectedId}
               onClick={() => setSelectedId(dock.id)}
             >
-              <DockIcon dock={dock} />
+              <span
+                aria-hidden="true"
+                className={
+                  dock.iconMask
+                    ? 'devframe-panel-tab-icon'
+                    : 'devframe-panel-tab-initial'
+                }
+                style={
+                  dock.iconMask
+                    ? { maskImage: `url("${dock.iconMask}")` }
+                    : undefined
+                }
+              >
+                {dock.iconMask ? null : dock.title.slice(0, 1)}
+              </span>
               {dock.title}
             </button>
           ))}
         </div>
       )}
       <div className="devframe-panel-stage">
-        {/*
-          Every mounted devframe keeps its iframe alive and is hidden when
-          inactive, so switching panels does not tear down a live session (a
-          running shell in the terminals devframe, for one).
-        */}
+        {/* Kept alive and hidden when inactive, so switching docks does not
+            tear down a live session (a running shell, for one). */}
         {docks.map((dock) => (
           <iframe
             key={dock.id}
@@ -106,28 +108,5 @@ export function DevframePanel() {
         ))}
       </div>
     </div>
-  )
-}
-
-/**
- * A dock's icon, painted as a `currentColor` mask so it follows the DevTools
- * theme. The dev server resolves the entry's Iconify id to the mask; when it
- * could not, fall back to the title's first letter rather than an empty box.
- */
-function DockIcon({ dock }: { dock: DevframeDock }) {
-  if (!dock.iconMask) {
-    return (
-      <span className="devframe-panel-tab-initial" aria-hidden="true">
-        {dock.title.slice(0, 1)}
-      </span>
-    )
-  }
-
-  return (
-    <span
-      className="devframe-panel-tab-icon"
-      aria-hidden="true"
-      style={{ maskImage: `url("${dock.iconMask}")` }}
-    />
   )
 }

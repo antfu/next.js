@@ -12,9 +12,9 @@ type NextFn = (err?: unknown) => void
 export type DevframeConfigEntry = string | { id: string }
 
 /**
- * The slice of `@devframes/hub`'s `HubInstance` this middleware drives. Declared
- * structurally rather than imported so `packages/next` takes no build-time
- * dependency on a package the user supplies at runtime.
+ * The slice of `@devframes/hub`'s `HubInstance` used here, declared structurally
+ * so `packages/next` takes no build-time dependency on a package the user
+ * supplies at runtime.
  */
 interface HubInstanceLike {
   nodeMiddleware: (
@@ -22,7 +22,6 @@ interface HubInstanceLike {
     res: ServerResponse,
     next?: NextFn
   ) => void
-  /** Resolves once every devframe is mounted and its dock registered. */
   ready: Promise<void>
   context: Promise<{
     docks: {
@@ -38,15 +37,13 @@ interface HubInstanceLike {
 }
 
 /**
- * Load an ESM-only package the user installed, resolving it from `projectDir`
- * rather than from Next's own location. Next is usually a symlink into a
- * package store, so a bare `import()` here would resolve against Next's real
- * path and miss the user's dependencies entirely.
+ * Load an ESM-only package the user installed, resolving it from `projectDir`:
+ * Next is usually a symlink into a package store, so a bare `import()` here
+ * would resolve against Next's real path and miss the user's dependencies.
  *
  * The non-literal specifier also keeps TypeScript from resolving a module that
- * is not a dependency of this package, and `taskfile-swc.js` sets
- * `ignoreDynamic: true` so the call survives the CJS transform as a real
- * dynamic `import()` instead of becoming a `require()`.
+ * is not a dependency here, and `taskfile-swc.js` sets `ignoreDynamic: true` so
+ * this survives the CJS transform as a real `import()` rather than a `require()`.
  */
 function importFromProject(
   projectDir: string,
@@ -68,12 +65,10 @@ function createHub(
         name: 'next-devtools',
         base: DEVFRAME_BASE,
         cwd: projectDir,
-        // A devframe already built by its factory is passed straight through,
-        // options and all. A package name becomes a factory `initHub` calls
-        // during init: loading it with a native `import()` rather than a static
-        // one matters, because a devframe's node side spawns child processes and
-        // resolves its SPA assets through `import.meta.url`, and these are
-        // ESM-only packages the user installs.
+        // An already-built devframe passes straight through. A package name
+        // becomes a factory `initHub` calls during init — loaded with a native
+        // `import()` because a devframe's node side spawns child processes and
+        // resolves its SPA through `import.meta.url`.
         devframes: devframes.map((entry) =>
           typeof entry === 'string'
             ? () =>
@@ -82,21 +77,16 @@ function createHub(
                 )
             : entry
         ),
-        // SSE only. It rides this middleware like every other hub route, so the
-        // MVP needs no WebSocket upgrade plumbing in the dev server.
+        // SSE only: it rides this middleware, so no WS upgrade plumbing.
         ws: false,
-        // The dev server is the trust boundary here; an OTP gate on a panel that
-        // should just open is the wrong trade for a dev-only, loopback surface.
+        // The dev server is the trust boundary; an OTP gate on a panel that
+        // should just open is the wrong trade for a loopback dev surface.
         auth: false,
       })
   )
 }
 
-/**
- * Answer {@link DEVFRAME_DOCKS_URL} from the hub context: the same dock list the
- * hub publishes as `devframe:docks`, read node-side so the overlay needs no RPC
- * client, with every icon resolved to a mask a themed rail can paint.
- */
+/** The hub's dock list, read node-side with each icon resolved to a mask. */
 async function serveDocks(
   hub: HubInstanceLike,
   res: ServerResponse
@@ -107,8 +97,8 @@ async function serveDocks(
   const docks = await Promise.all(
     context.docks
       .values()
-      // The MVP panel renders iframe docks; every other type needs a renderer
-      // registry, which arrives with the hub client runtime.
+      // Other dock types need the renderer registry, which arrives with the
+      // hub client runtime.
       .filter((entry) => entry.type === 'iframe' && entry.url)
       .map(async (entry): Promise<DevframeDock> => {
         const iconMask = await resolveDockIconMask(entry.icon)
@@ -125,40 +115,32 @@ async function serveDocks(
 }
 
 /**
- * Work around header corruption for hub responses.
+ * Apply a `writeHead` header array with `setHeader` instead.
  *
  * `router-server.ts` runs Next's vendored `compression` on every request, and
- * `on-headers@1.0.2` underneath it patches `res.writeHead` with a
- * `setHeadersFromArray` that assumes an array of `[name, value]` tuples. Node
- * documents the array form as flat — `[name, value, name, value]`, "not a list
- * of tuples" — which is what the hub's fetch-to-node bridge passes. Every name
- * and value is then truncated to its first two characters (`content-type`
- * becomes the header `c: o`), so SPA assets arrive with no `Content-Type` and
- * the browser refuses to execute their module scripts.
+ * `on-headers@1.0.2` under it patches `writeHead` with a `setHeadersFromArray`
+ * that assumes `[name, value]` tuples. Node documents the array form as flat
+ * ("not a list of tuples"), which is what the hub's fetch-to-node bridge
+ * passes, so every name and value is truncated to two characters
+ * (`content-type` becomes the header `c: o`) and SPA assets arrive with no
+ * `Content-Type`. Nothing patches `setHeader`, so routing through it is intact,
+ * and compression still sees a real content type.
  *
- * Lift a flat array out of the `writeHead` call and apply it with `setHeader`
- * instead, which nothing in that chain patches. Compression then reads a real
- * content type when it decides whether to transform the body.
- *
- * The general fix is upstream: `on-headers@1.1.0` distinguishes 1D from 2D
- * arrays and `compression@1.8.1` depends on it. Bumping the vendored copy would
- * make this shim unnecessary and fix the same corruption for every other
- * fetch-based handler mounted in the dev server.
+ * Fixed upstream in `on-headers@1.1.0` (used by `compression@1.8.1`); bumping
+ * the vendored copy would retire this and fix every other fetch-based handler.
  */
 function applyHeadersWithoutWriteHead(res: ServerResponse): void {
   const originalWriteHead = res.writeHead.bind(res)
 
   res.writeHead = function writeHead(...args: any[]) {
     const index = args.findIndex((arg) => Array.isArray(arg))
+    const flat = index === -1 ? undefined : (args[index] as string[])
 
-    if (index !== -1) {
-      const flat = args[index] as string[]
-      if (flat.length % 2 === 0) {
-        for (let i = 0; i < flat.length; i += 2) {
-          res.setHeader(flat[i], flat[i + 1])
-        }
-        args.splice(index, 1)
+    if (flat && flat.length % 2 === 0) {
+      for (let i = 0; i < flat.length; i += 2) {
+        res.setHeader(flat[i], flat[i + 1])
       }
+      args.splice(index, 1)
     }
 
     return originalWriteHead(...(args as Parameters<typeof originalWriteHead>))
@@ -166,19 +148,18 @@ function applyHeadersWithoutWriteHead(res: ServerResponse): void {
 }
 
 /**
- * Serve a Devframe hub from the dev server, so Next DevTools can host devframes
- * as panels. Callers mount this only when `experimental.devframes` is non-empty;
- * it stays inert if the user has not also installed `@devframes/hub`.
+ * Serve a Devframe hub from the dev server so Next DevTools can host devframes
+ * as panels. Mounted only when `experimental.devframes` is non-empty, and inert
+ * if the user has not also installed `@devframes/hub`.
  *
- * The hub boots on the first request under {@link DEVFRAME_BASE} rather than at
- * dev-server startup, so a dev server that never opens the panel pays nothing.
+ * The hub boots on the first request under {@link DEVFRAME_BASE}, so a dev
+ * server that never opens the panel pays nothing.
  */
 export function getDevframeMiddleware({
   projectDir,
   devframes,
 }: {
   projectDir: string
-  /** Entries from `experimental.devframes`. */
   devframes: readonly DevframeConfigEntry[]
 }): (req: IncomingMessage, res: ServerResponse, next: NextFn) => Promise<void> {
   let hub: Promise<HubInstanceLike | null> | undefined
@@ -193,11 +174,8 @@ export function getDevframeMiddleware({
     }
 
     hub ??= createHub(projectDir, devframes).catch((error) => {
-      const packages = devframes
-        .filter((entry): entry is string => typeof entry === 'string')
-        .join(' ')
       console.error(
-        `Next DevTools: could not start the Devframe hub. Install it with \`npm i -D @devframes/hub${packages ? ` ${packages}` : ''}\`.`,
+        'Next DevTools: could not start the Devframe hub. Install `@devframes/hub` alongside the devframes in `experimental.devframes`.',
         error
       )
       return null
@@ -208,8 +186,7 @@ export function getDevframeMiddleware({
       return next()
     }
 
-    // Answer the dock listing before delegating: it is Next's own endpoint under
-    // the hub base, so the hub would otherwise 404 it.
+    // Next's own endpoint under the hub base, so answer it before delegating.
     if (pathname === DEVFRAME_DOCKS_URL) {
       try {
         return await serveDocks(instance, res)
@@ -221,8 +198,8 @@ export function getDevframeMiddleware({
     applyHeadersWithoutWriteHead(res)
 
     // `nodeMiddleware` calls `next()` synchronously for a path outside the hub
-    // base and otherwise owns the response, which is exactly what the dev
-    // middleware runner's `calledNext` check expects.
+    // base and otherwise owns the response — what the dev middleware runner's
+    // `calledNext` check expects.
     instance.nodeMiddleware(req, res, next)
   }
 }
