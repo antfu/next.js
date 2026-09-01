@@ -614,9 +614,7 @@ export interface ExperimentalConfig {
    * Install the packages yourself, alongside `@devframes/hub`. Some devframes
    * spawn processes or expose a shell, so only list ones you trust.
    */
-  devframes?: Array<
-    string | { id: string } | { devframe: { id: string }; dock?: object }
-  >
+  devframes?: Array<string | { id: string }>
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string

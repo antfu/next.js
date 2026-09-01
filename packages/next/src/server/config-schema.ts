@@ -266,13 +266,7 @@ export const experimentalSchema = {
     // Either a package name, or a devframe built by its factory. The object
     // form carries functions, so only its `id` is checked here; the hub
     // validates the rest when it mounts.
-    .array(
-      z.union([
-        z.string(),
-        z.object({ id: z.string() }),
-        z.object({ devframe: z.object({ id: z.string() }) }),
-      ])
-    )
+    .array(z.union([z.string(), z.object({ id: z.string() })]))
     .optional(),
   fallbackNodePolyfills: z.literal(false).optional(),
   fetchCacheKeyPrefix: z.string().optional(),

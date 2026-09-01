@@ -1,5 +1,4 @@
 import type { IncomingMessage, ServerResponse } from 'http'
-import { isAbsolute, dirname, basename } from 'path'
 import { pathToFileURL } from 'url'
 
 import type { DevframeDock } from '../shared/devframe'
@@ -9,14 +8,8 @@ import { middlewareResponse } from './middleware-response'
 
 type NextFn = (err?: unknown) => void
 
-/**
- * One `experimental.devframes` entry: a package name, a built devframe, or the
- * hub's `{ devframe, dock }` form for per-mount dock options.
- */
-export type DevframeConfigEntry =
-  | string
-  | { id: string }
-  | { devframe: { id: string }; dock?: Record<string, any> }
+/** One `experimental.devframes` entry: a package name, or a built devframe. */
+export type DevframeConfigEntry = string | { id: string }
 
 /**
  * The slice of `@devframes/hub`'s `HubInstance` used here, declared structurally
@@ -63,43 +56,10 @@ function importFromProject(
   return import(resolved)
 }
 
-/**
- * Rewrite any `dock.clientScript` given as an absolute file path into a URL this
- * dev server serves, collecting the directories to mount. A devframe ships its
- * page script as a path on disk (`a11yPageScriptBundlePath`), and only the host
- * can put it on an origin the page can import from.
- */
-function resolvePageScripts(devframes: readonly DevframeConfigEntry[]): {
-  entries: DevframeConfigEntry[]
-  mounts: Array<[base: string, dir: string]>
-} {
-  const mounts: Array<[string, string]> = []
-
-  const entries = devframes.map((entry) => {
-    if (typeof entry === 'string' || !('devframe' in entry)) return entry
-    const importFrom = entry.dock?.clientScript?.importFrom
-    if (typeof importFrom !== 'string' || !isAbsolute(importFrom)) return entry
-
-    const base = `${DEVFRAME_BASE}__nextjs_page-script/${entry.devframe.id}/`
-    mounts.push([base, dirname(importFrom)])
-    return {
-      ...entry,
-      dock: {
-        ...entry.dock,
-        clientScript: { importFrom: base + basename(importFrom) },
-      },
-    }
-  })
-
-  return { entries, mounts }
-}
-
 function createHub(
   projectDir: string,
   devframes: readonly DevframeConfigEntry[]
 ): Promise<HubInstanceLike> {
-  const { entries, mounts } = resolvePageScripts(devframes)
-
   return importFromProject(projectDir, '@devframes/hub/initiate').then(
     ({ initHub }) =>
       initHub({
@@ -110,7 +70,7 @@ function createHub(
         // becomes a factory `initHub` calls during init — loaded with a native
         // `import()` because a devframe's node side spawns child processes and
         // resolves its SPA through `import.meta.url`.
-        devframes: entries.map((entry) =>
+        devframes: devframes.map((entry) =>
           typeof entry === 'string'
             ? () =>
                 importFromProject(projectDir, entry).then((mod) =>
@@ -123,13 +83,6 @@ function createHub(
         // The dev server is the trust boundary; an OTP gate on a panel that
         // should just open is the wrong trade for a loopback dev surface.
         auth: false,
-        async configure(ctx: {
-          host: { mountStatic: (base: string, dir: string) => unknown }
-        }) {
-          for (const [base, dir] of mounts) {
-            await ctx.host.mountStatic(base, dir)
-          }
-        },
       })
   )
 }
@@ -160,6 +113,8 @@ async function serveDocks(
       })
   )
 
+  // The hub resolves a definition's page script to a URL it serves, so this is
+  // just the list of them.
   const pageScripts = entries
     .map((entry) => entry.clientScript?.importFrom)
     .filter((url): url is string => typeof url === 'string')
