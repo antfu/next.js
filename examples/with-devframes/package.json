@@ -11,12 +11,12 @@
     "react-dom": "19.2.0"
   },
   "devDependencies": {
-    "@devframes/hub": "^0.9.8",
-    "@devframes/plugin-a11y": "^0.9.8",
-    "@devframes/plugin-code-server": "^0.9.8",
-    "@devframes/plugin-data-inspector": "^0.9.8",
-    "@devframes/plugin-inspect": "^0.9.8",
-    "@devframes/plugin-terminals": "^0.9.8",
+    "@devframes/hub": "^0.9.11",
+    "@devframes/plugin-a11y": "^0.9.11",
+    "@devframes/plugin-code-server": "^0.9.11",
+    "@devframes/plugin-data-inspector": "^0.9.11",
+    "@devframes/plugin-inspect": "^0.9.11",
+    "@devframes/plugin-terminals": "^0.9.11",
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
